@@ -1,6 +1,6 @@
 <?php
 // -----------------------------------------------------------------------------
-// หน้า Dashboard (Full Feature Version)
+// หน้า Dashboard (Refactored - Clean Version)
 // -----------------------------------------------------------------------------
 require_once 'db_connect.php'; // $conn และ session_start()
 
@@ -21,6 +21,7 @@ try {
     $result_user = $conn->query($sql_user);
     $user_info = $result_user->fetch_assoc();
     $user_full_name = $user_info['u_full_name'] ?? $user_username;
+    $_SESSION['u_full_name'] = $user_full_name; // (เก็บไว้ให้หน้าอื่นใช้)
 } catch (Exception $e) {
     die("Error fetching user data: " + $e->getMessage());
 }
@@ -28,104 +29,127 @@ try {
 // --- กำหนดตัวแปรสำหรับข้อความแจ้งเตือน ---
 $error_message = '';
 $success_message = '';
-$kwh_rate = 4.00; // (กำหนดอัตราค่าไฟไว้ที่นี่)
-$co2_rate = 0.5; // (สมมติ 1 kWh = 0.5 kg CO2)
 
-// --- START: ส่วนการประมวลผล POST ---
+// --- (ย้ายมา) ตรวจสอบข้อความแจ้งเตือนพิเศษจากแคมเปญ ---
+if (isset($_SESSION['campaign_success_message'])) {
+    $success_message = $_SESSION['campaign_success_message'];
+    unset($_SESSION['campaign_success_message']);
+}
+if (isset($_SESSION['campaign_fail_message'])) {
+    $error_message = $_SESSION['campaign_fail_message'];
+    unset($_SESSION['campaign_fail_message']);
+}
+
+$kwh_rate = 4.00; 
+$co2_rate = 0.5; 
+
+// --- START: ส่วนการประมวลผล POST (คงเดิม) ---
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     
     $action = $_POST['action'] ?? '';
 
     try {
-        // --- ACTION 1: บันทึกการใช้พลังงาน (แบบเต็ม) ---
+        // --- ACTION 1: บันทึกการใช้พลังงาน (คงเดิม) ---
         if ($action === 'log_energy') {
             $kwh_usage = $_POST['kwh_usage'] ?? 0;
-            $water_usage = $_POST['water_usage'] ?? 0; // (ฟีเจอร์ค่าน้ำ)
+            $water_usage = $_POST['water_usage'] ?? 0; 
             $log_date = $_POST['log_date'] ?? date('Y-m-d');
 
-            // --- START: ตรวจสอบข้อมูลเบื้องต้น ---
+            // (ส่วนตรวจสอบข้อมูลเบื้องต้น และการอัปโหลดไฟล์ คงเดิม)
             if (empty($kwh_usage) || empty($log_date)) {
                 throw new Exception("ข้อมูล kWh และวันที่ ห้ามว่าง");
             }
             if (empty($_FILES['bill_proof_file']['name'])) {
                 throw new Exception("กรุณาแนบไฟล์หลักฐาน (บิลค่าไฟ)");
             }
-            // --- END: ตรวจสอบข้อมูลเบื้องต้น ---
             
-            // --- FIX: ย้ายการคำนวณ $month_year มาไว้ก่อน ---
             $calculated_cost = $kwh_usage * $kwh_rate;
             $period_start = date('Y-m-01', strtotime($log_date));
             $month_year = date('Y-m', strtotime($log_date));
-            // --- END FIX ---
             
-            // --- START: ประมวลผลไฟล์ที่อัปโหลด ---
-            $upload_dir = 'uploads/bills/'; // โฟลเดอร์สำหรับเก็บไฟล์บิล
+            // (ส่วนประมวลผลไฟล์ คงเดิม)
+            $upload_dir = 'uploads/bills/'; 
             if (!is_dir($upload_dir)) {
-                mkdir($upload_dir, 0755, true); // สร้างโฟลเดอร์ถ้ายังไม่มี
+                mkdir($upload_dir, 0755, true); 
             }
-            
             $file = $_FILES['bill_proof_file'];
             $file_ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $allowed_exts = ['jpg', 'jpeg', 'png', 'pdf'];
-            
-            // 1. ตรวจสอบนามสกุลไฟล์
             if (!in_array($file_ext, $allowed_exts)) {
                 throw new Exception("อนุญาตเฉพาะไฟล์นามสกุล: JPG, JPEG, PNG, PDF เท่านั้น");
             }
-            // 2. ตรวจสอบขนาดไฟล์ (ไม่เกิน 2MB)
-            if ($file['size'] > 2 * 1024 * 1024) { // 2 MB
+            if ($file['size'] > 2 * 1024 * 1024) { 
                 throw new Exception("ขนาดไฟล์ต้องไม่เกิน 2MB");
             }
-            // 3. ตรวจสอบ Error
             if ($file['error'] !== UPLOAD_ERR_OK) {
                 throw new Exception("เกิดข้อผิดพลาดในการอัปโหลดไฟล์");
             }
-
-            // 4. สร้างชื่อไฟล์ใหม่ (ป้องกันการทับซ้อน)
             $unique_filename = $user_id . '_' . $month_year . '_' . uniqid() . '.' . $file_ext;
             $destination = $upload_dir . $unique_filename;
-
-            // 5. ย้ายไฟล์
             if (!move_uploaded_file($file['tmp_name'], $destination)) {
                 throw new Exception("ไม่สามารถย้ายไฟล์ไปยัง " . $destination);
             }
-            // --- END: ประมวลผลไฟล์ที่อัปโหลด ---
 
-            // ตรวจสอบการบันทึกซ้ำ (ในเดือนเดียวกัน)
+            // ตรวจสอบการบันทึกซ้ำ (คงเดิม)
             $sql_check = "SELECT el_id FROM energy_log WHERE u_id = $user_id AND DATE_FORMAT(el_date, '%Y-%m') = '$month_year'";
             $result_check = $conn->query($sql_check);
-            
             if ($result_check->num_rows > 0) {
                 throw new Exception('คุณได้บันทึกข้อมูลสำหรับเดือนนี้ไปแล้ว');
             }
 
-            // --- SQL INSERT (แบบเต็ม) ---
-            // (สถานะเริ่มต้นคือ 'pending' รอ Admin ตรวจสอบ)
+            // SQL INSERT (คงเดิม)
             $sql_insert = "INSERT INTO energy_log (u_id, el_date, el_kwh_usage, el_water_usage, el_period_start, el_calculated_cost, el_bill_proof_file, el_verification_status) 
                            VALUES ($user_id, '$log_date', $kwh_usage, $water_usage, '$period_start', $calculated_cost, '$unique_filename', 'pending')";
             
             if ($conn->query($sql_insert) === TRUE) {
                 $success_message = 'บันทึกข้อมูลสำเร็จ! (รอการตรวจสอบจากผู้ดูแลระบบ)';
+                
+                // (คงเดิม) ตรวจสอบแคมเปญหลังจากบันทึกข้อมูล
+                $sql_find_campaign = "SELECT * FROM user_campaigns uc 
+                                      JOIN campaigns c ON uc.c_id = c.c_id 
+                                      WHERE uc.u_id = $user_id AND uc.uc_status = 'accepted'";
+                $campaign_result = $conn->query($sql_find_campaign);
+
+                if ($campaign_result->num_rows > 0) {
+                    $campaign_row = $campaign_result->fetch_assoc();
+                    $target_kwh = (float)$campaign_row['uc_target_kwh'];
+                    $current_kwh = (float)$kwh_usage;
+
+                    if ($current_kwh <= $target_kwh) {
+                        // 2. ทำสำเร็จ!
+                        $uc_id = $campaign_row['uc_id'];
+                        $c_id = $campaign_row['c_id'];
+                        $reward_value = $campaign_row['c_reward_value'];
+                        $partner_name = $campaign_row['c_partner_name'];
+                        $reward_code = 'COUPON-' . strtoupper(uniqid());
+
+                        $conn->query("UPDATE user_campaigns SET uc_status = 'completed' WHERE uc_id = $uc_id");
+                        $conn->query("INSERT INTO user_rewards (u_id, c_id, ur_code, ur_value, ur_partner_name) 
+                                      VALUES ($user_id, $c_id, '$reward_code', $reward_value, '$partner_name')");
+                        $_SESSION['campaign_success_message'] = "ยินดีด้วย! คุณทำแคมเปญสำเร็จ! ได้รับคูปอง $reward_value บาท (Code: $reward_code)";
+
+                    } else {
+                        // 3. ทำไม่สำเร็จ
+                        $_SESSION['campaign_fail_message'] = "เกือบแล้ว! คุณพลาดเป้าหมายแคมเปญในเดือนนี้ (ใช้ $current_kwh kWh / เป้าหมาย $target_kwh kWh) พยายามใหม่เดือนหน้า!";
+                    }
+                }
+                
             } else {
                 throw new Exception("ไม่สามารถบันทึกข้อมูลได้: " . $conn->error);
             }
         
         // --- ACTION 2: ตั้งเป้าหมายการประหยัด (คงเดิม) ---
         } elseif ($action === 'set_goal') {
-            $goal_month = $_POST['goal_month'] ?? ''; // 'YYYY-MM'
+            $goal_month = $_POST['goal_month'] ?? ''; 
             $kwh_goal = $_POST['kwh_goal'] ?? 0;
-
             if (empty($goal_month) || empty($kwh_goal)) {
                 throw new Exception("ข้อมูลเดือนและเป้าหมาย (kWh) ห้ามว่าง");
             }
-
             $sg_start_date = $goal_month . '-01';
             $sg_end_date = date("Y-m-t", strtotime($sg_start_date));
             $sg_type = 'kwh';
-
             $sql_goal = "REPLACE INTO saving_goals (u_id, sg_type, sg_target_value, sg_start_date, sg_end_date) 
                          VALUES ($user_id, '$sg_type', $kwh_goal, '$sg_start_date', '$sg_end_date')";
-            
             if ($conn->query($sql_goal) === TRUE) {
                 $success_message = 'บันทึกเป้าหมายเรียบร้อยแล้ว';
                 header('Location: dashboard.php?view_month=' . $goal_month);
@@ -133,15 +157,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             } else {
                 throw new Exception("ไม่สามารถบันทึกเป้าหมายได้: " . $conn->error);
             }
+
+        // --- (ลบ) ACTION 3: รับข้อเสนอแคมเปญ (ย้ายไป campaigns.php) ---
+
         }
     } catch (Exception $e) {
         $error_message = $e->getMessage();
     }
 } // สิ้นสุดการตรวจสอบ POST
 
-// 5. ดึงข้อมูล (GET) มาแสดงผล (แบบเต็ม - กรองเฉพาะ 'verified')
+// 5. ดึงข้อมูล (GET) มาแสดงผล (คงเดิม)
 
-// 5.1 ดึง "ค่าใช้จ่ายทั้งหมด" และ "ลด CO2" (สะสม)
+// 5.1 ดึง "ค่าใช้จ่ายทั้งหมด" และ "ลด CO2" (สะสม) (คงเดิม)
 $total_kwh = 0;
 $total_cost = 0;
 $sql_summary = "SELECT SUM(el_kwh_usage) as total_kwh, SUM(el_calculated_cost) as total_cost 
@@ -152,7 +179,7 @@ $total_kwh = $summary_result['total_kwh'] ?? 0;
 $total_cost = $summary_result['total_cost'] ?? 0;
 $total_co2_saved = $total_kwh * $co2_rate;
 
-// 5.2 (ฟีเจอร์) ดึง "ค่าใช้จ่ายที่ประหยัด" (สะสม)
+// 5.2 (ฟีเจอร์) ดึง "ค่าใช้จ่ายที่ประหยัด" (สะสม) (คงเดิม)
 $total_saved_cost = 0;
 $sql_saved = "SELECT SUM((sg.sg_target_value - el.el_kwh_usage) * $kwh_rate) as total_saved
               FROM energy_log el
@@ -160,17 +187,15 @@ $sql_saved = "SELECT SUM((sg.sg_target_value - el.el_kwh_usage) * $kwh_rate) as 
               WHERE el.u_id = $user_id
               AND el.el_verification_status = 'verified' 
               AND sg.sg_target_value > el.el_kwh_usage"; 
-
 $saved_result = $conn->query($sql_saved);
 if ($saved_result) {
     $total_saved_cost = $saved_result->fetch_assoc()['total_saved'] ?? 0;
 }
 
-// 5.3 ดึงข้อมูลสำหรับกราฟ (6 เดือนล่าสุด)
+// 5.3 ดึงข้อมูลสำหรับกราฟ (6 เดือนล่าสุด) (คงเดิม)
 $chart_labels = [];
 $chart_usage_data = [];
 $chart_goal_data = [];
-
 $sql_chart_logs = "SELECT DATE_FORMAT(el_date, '%Y-%m') as month_year, el_kwh_usage 
                                    FROM energy_log 
                                    WHERE u_id = $user_id AND el_verification_status = 'verified' 
@@ -182,7 +207,6 @@ while ($row = $logs_result->fetch_assoc()) {
     $usage_logs_map[$row['month_year']] = $row['el_kwh_usage'];
 }
 $chart_labels = array_reverse($chart_labels); 
-
 $sql_chart_goals = "SELECT DATE_FORMAT(sg_start_date, '%Y-%m') as month_year, sg_target_value 
                                     FROM saving_goals 
                                     WHERE u_id = $user_id AND sg_type = 'kwh'
@@ -192,26 +216,22 @@ $goals_map = [];
 while ($row = $goals_result->fetch_assoc()) {
     $goals_map[$row['month_year']] = $row['sg_target_value'];
 }
-
 foreach ($chart_labels as $label) {
     $chart_usage_data[] = $usage_logs_map[$label] ?? 0;
     $chart_goal_data[] = $goals_map[$label] ?? null; 
 }
 
-// 5.4 ดึงข้อมูลเป้าหมาย (Progress Bar) ตามเดือนที่ "เลือกดู"
+// 5.4 ดึงข้อมูลเป้าหมาย (Progress Bar) (คงเดิม)
 $view_month_year = $_GET['view_month'] ?? date('Y-m'); 
 $view_month_start = $view_month_year . '-01'; 
-
 $current_goal_value = 0;
 $current_usage_value = 0;
 $current_progress_percent = 0;
-
 $sql_current_goal = "SELECT sg_target_value FROM saving_goals WHERE u_id = $user_id AND sg_start_date = '$view_month_start' AND sg_type = 'kwh'";
 $current_goal_result = $conn->query($sql_current_goal);
 if ($current_goal_result && $current_goal_result->num_rows > 0) {
     $current_goal_value = $current_goal_result->fetch_assoc()['sg_target_value'];
 }
-
 $sql_current_log = "SELECT el_kwh_usage FROM energy_log 
                     WHERE u_id = $user_id AND DATE_FORMAT(el_date, '%Y-%m') = '$view_month_year' 
                     AND el_verification_status = 'verified'";
@@ -219,12 +239,23 @@ $current_log_result = $conn->query($sql_current_log);
 if ($current_log_result && $current_log_result->num_rows > 0) {
     $current_usage_value = $current_log_result->fetch_assoc()['el_kwh_usage'];
 }
-
-// คำนวณ Progress
 if ($current_goal_value > 0) {
     $current_progress_percent = ($current_usage_value / $current_goal_value) * 100;
     if ($current_progress_percent > 100) $current_progress_percent = 100;
 }
+
+// --- (ใหม่) 5.5 ดึงข้อมูลแจ้งเตือนแคมเปญ (แบบง่าย) ---
+$new_campaign_count = 0;
+$sql_campaigns_count = "SELECT COUNT(c_id) as count FROM campaigns c
+                  WHERE c.c_is_active = 1 
+                  AND c.c_id NOT IN (
+                      SELECT uc.c_id FROM user_campaigns uc WHERE uc.u_id = $user_id
+                  )";
+$campaigns_count_result = $conn->query($sql_campaigns_count);
+if ($campaigns_count_result) {
+    $new_campaign_count = (int)$campaigns_count_result->fetch_assoc()['count'];
+}
+// --- จบส่วนดึงข้อมูลใหม่ ---
 
 $conn->close(); // ปิดการเชื่อมต่อ
 ?>
@@ -288,11 +319,13 @@ $conn->close(); // ปิดการเชื่อมต่อ
              font-size: 1.1rem;
              font-weight: 500;
         }
+        
+        /* (ลบ CSS แคมเปญออก) */
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
-    <!-- (Navbar HTML ทั้งหมดคงเดิม) -->
+    <!-- Navbar (อัปเดตใหม่) -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-success shadow-sm sticky-top">
         <div class="container">
             <a class="navbar-brand" href="dashboard.php">
@@ -316,25 +349,31 @@ $conn->close(); // ปิดการเชื่อมต่อ
                             <a class="nav-link" href="manage_content.php">จัดการเนื้อหา</a>
                         </li>
                     <?php else: ?>
-                        <!-- เมนู User -->
+                        <!-- เมนู User (อัปเดต) -->
                         <li class="nav-item">
                             <a class="nav-link active" href="dashboard.php">Dashboard</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="profile.php">โปรไฟล์</a>
+                            <a class="nav-link" href="campaigns.php">
+                                แคมเปญ
+                                <?php if ($new_campaign_count > 0): ?>
+                                    <span class="badge bg-danger"><?php echo $new_campaign_count; ?></span>
+                                <?php endif; ?>
+                            </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="tips.php">เคล็ดลับ</a>
+                         <li class="nav-item">
+                            <a class="nav-link" href="rewards.php">รางวัล</a>
                         </li>
                     <?php endif; ?>
                     
-                    <!-- เมนู Logout (แสดงชื่อ) -->
+                    <!-- เมนู Logout (แสดงชื่อ) (อัปเดต) -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user me-1"></i> <?php echo htmlspecialchars($user_full_name); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
-                            <li><a class="dropdown-item" href="profile.php">แก้ไขโปรไฟล์</a></li>
+                            <li><a class="dropdown-item" href="profile.php">โปรไฟล์</a></li>
+                            <li><a class="dropdown-item" href="tips.php">เคล็ดลับ</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="logout.php"><i class="fas fa-sign-out-alt me-1"></i>ออกจากระบบ</a></li>
                         </ul>
@@ -348,7 +387,7 @@ $conn->close(); // ปิดการเชื่อมต่อ
     <main class="main-content">
         <div class="container">
             
-            <!-- (ส่วน Summary Cards - ครบ 3 การ์ด) -->
+            <!-- ส่วน Summary Cards (โค้ดเต็ม) -->
             <h2 class="h4 mb-3">สรุปผลกระทบ (Overall Impact)</h2>
             <div class="row g-4 mb-4">
                 
@@ -398,7 +437,7 @@ $conn->close(); // ปิดการเชื่อมต่อ
                 </div>
             </div>
 
-            <!-- (ส่วนแสดงข้อความ Error/Success - แบบ Auto-Fade) -->
+            <!-- (ส่วนแสดงข้อความ Error/Success - โค้ดเต็ม) -->
             <?php if (!empty($error_message)): ?>
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
                     <i class="fas fa-exclamation-triangle me-2"></i>
@@ -414,16 +453,31 @@ $conn->close(); // ปิดการเชื่อมต่อ
                 </div>
             <?php endif; ?>
 
+            <!-- --- (ใหม่) ส่วนแจ้งเตือนแคมเปญ --- -->
+            <?php if ($new_campaign_count > 0): ?>
+                <div class="alert alert-info alert-dismissible fade show" role="alert">
+                    <i class="fas fa-gift me-2"></i>
+                    <strong>คุณมีแคมเปญใหม่ <?php echo $new_campaign_count; ?> รายการ!</strong>
+                    <a href="campaigns.php" class="alert-link">คลิกที่นี่เพื่อดูข้อเสนอ</a>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            <?php endif; ?>
+            <!-- --- จบส่วนแจ้งเตือนแคมเปญ --- -->
 
-            <!-- (แถว กราฟ และ ฟอร์ม คงเดิม) -->
+
+            <!-- --- (ลบ) ส่วนแสดงผลแคมเปญและรางวัล --- -->
+            <!-- (โค้ด HTML ของ div.row.g-4.mb-4 ที่แสดงแคมเปญ ถูกลบออกจากตรงนี้) -->
+
+
+            <!-- (แถว กราฟ และ ฟอร์ม - โค้ดเต็ม) -->
             <div class="row g-4">
                 
-                <!-- (คอลัมน์ซ้าย: กราฟ และ Progress Bar คงเดิม) -->
+                <!-- (คอลัมน์ซ้าย: กราฟ และ Progress Bar) -->
                 <div class="col-lg-7">
                     <!-- Card 1 (ซ้าย): ความคืบหน้าเป้าหมาย -->
                     <div class="card shadow-sm border-0 mb-4 progress-view-wrapper">
                         <div class="card-body">
-                            <!-- (ฟอร์มเลือกเดือนคงเดิม) -->
+                            <!-- (ฟอร์มเลือกเดือน) -->
                             <form method="GET" action="dashboard.php" class="progress-view-form">
                                 <h5 class="mb-0">ความคืบหน้าเป้าหมายเดือน:</h5>
                                 <div class="input-group">
@@ -432,7 +486,7 @@ $conn->close(); // ปิดการเชื่อมต่อ
                                 </div>
                             </form>
 
-                            <!-- (Progress Bar คงเดิม) -->
+                            <!-- (Progress Bar) -->
                             <?php if ($current_goal_value > 0): ?>
                             <div class="progress progress-bar-lg" style="height: 35px; font-size: 1.1rem;">
                                 <div class="progress-bar <?php echo ($current_progress_percent >= 100) ? 'bg-danger' : 'bg-success'; ?> progress-bar-striped progress-bar-animated" 
@@ -469,14 +523,13 @@ $conn->close(); // ปิดการเชื่อมต่อ
                 <!-- คอลัมน์ขวา: ฟอร์ม -->
                 <div class="col-lg-5">
                     
-                    <!-- ฟอร์ม 1: บันทึกการใช้พลังงาน (แบบเต็ม) -->
+                    <!-- ฟอร์ม 1: บันทึกการใช้พลังงาน (โค้ดเต็ม) -->
                     <div class="card shadow-sm border-0 mb-4">
                         <div class="card-header bg-success text-white">
                             <i class="fas fa-edit card-header-icon"></i>
                             บันทึกการใช้พลังงานปัจจุบัน
                         </div>
                         <div class="card-body">
-                            <!-- (เพิ่ม enctype สำหรับ อัปโหลดไฟล์) -->
                             <form method="POST" action="dashboard.php" enctype="multipart/form-data">
                                 <input type="hidden" name="action" value="log_energy">
                                 <div class="mb-3">
@@ -491,7 +544,6 @@ $conn->close(); // ปิดการเชื่อมต่อ
                                     <label for="log_date" class="form-label">สำหรับรอบบิล/วันที่บันทึก</label>
                                     <input type="date" class="form-control" id="log_date" name="log_date" required>
                                 </div>
-                                <!-- (ช่องอัปโหลดไฟล์) -->
                                 <div class="mb-3">
                                     <label for="bill_proof_file" class="form-label">แนบหลักฐาน (บิล/มิเตอร์)</label>
                                     <input class="form-control" type="file" id="bill_proof_file" name="bill_proof_file" accept=".jpg, .jpeg, .png, .pdf" required>
@@ -502,7 +554,7 @@ $conn->close(); // ปิดการเชื่อมต่อ
                         </div>
                     </div>
 
-                    <!-- ฟอร์ม 2: ตั้งเป้าหมาย (คงเดิม) -->
+                    <!-- ฟอร์ม 2: ตั้งเป้าหมาย (โค้ดเต็ม) -->
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-warning text-dark">
                             <i class="fas fa-bullseye card-header-icon"></i>
@@ -530,21 +582,22 @@ $conn->close(); // ปิดการเชื่อมต่อ
         </div>
     </main>
 
-    <!-- (Footer HTML คงเดิม) -->
+    <!-- Footer (โค้ดเต็ม) -->
     <footer class="footer mt-auto py-3 bg-dark text-white-50">
         <div class="container text-center">
             <small>© 2025 Green Digital Tracker: Developed by SARABURI TECHNICAL COLLEGE</small>
         </div>
     </footer>
 
-    <!-- JS Libraries (ตามเกณฑ์ - ไม่มี flatpickr) -->
+    <!-- (JS Libraries คงเดิม) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
+    <!-- (JS หลัก โค้ดเต็ม) -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-            // --- (JS สำหรับ Auto-Fading Alert) ---
+            // (JS สำหรับ Auto-Fading Alert)
             try {
                 const autoFadeAlerts = document.querySelectorAll('.alert-dismissible');
                 autoFadeAlerts.forEach(function(alert) {
@@ -557,12 +610,11 @@ $conn->close(); // ปิดการเชื่อมต่อ
                 console.warn("Could not auto-hide alerts:", e);
             }
 
-            // --- (JS สำหรับตั้งค่า default date) ---
+            // (JS สำหรับตั้งค่า default date)
             try {
-                // (ใช้ JS ธรรมดาเพื่อตั้งค่า input type="date" เป็น "วันนี้")
                 const today = new Date().toISOString().split('T')[0];
                 const dateInput = document.getElementById('log_date');
-                if (!dateInput.value) { // (ตั้งค่าเฉพาะถ้าช่องว่าง)
+                if (!dateInput.value) { 
                     dateInput.value = today;
                 }
             } catch(e) {
@@ -570,9 +622,8 @@ $conn->close(); // ปิดการเชื่อมต่อ
             }
 
 
-            // (ส่วน Chart.js คงเดิมทั้งหมด)
+            // (ส่วน Chart.js โค้ดเต็ม)
             const ctx = document.getElementById('energyChart').getContext('2d');
-            
             const chartLabels = <?php echo json_encode($chart_labels); ?>;
             const chartUsageData = <?php echo json_encode($chart_usage_data); ?>;
             const chartGoalData = <?php echo json_encode($chart_goal_data); ?>;
