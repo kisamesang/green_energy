@@ -15,8 +15,11 @@ $user_id = $_SESSION['u_id'];
 $user_role = $_SESSION['u_role'];
 $user_full_name = $_SESSION['u_full_name'] ?? $_SESSION['u_username'];
 
-// 3. (ย้ายมา) ดึงข้อมูล "รางวัล" ที่ทำสำเร็จแล้ว
+// --- (ใหม่) 3. ดึงข้อมูล "รางวัล" และ "วันที่ปัจจุบัน" ---
 $user_rewards = [];
+$current_date_obj = new DateTime(); // วันที่ปัจจุบัน
+$current_date_str = $current_date_obj->format('Y-m-d');
+
 $sql_rewards = "SELECT * FROM user_rewards WHERE u_id = $user_id ORDER BY ur_claimed_at DESC";
 $rewards_result = $conn->query($sql_rewards);
 while ($row = $rewards_result->fetch_assoc()) {
@@ -58,6 +61,21 @@ $conn->close();
             padding: 0.25rem 0.5rem;
             border-radius: 0.25rem;
             border: 1px dashed #ced4da;
+        }
+
+        /* (ใหม่) CSS สำหรับคูปองหมดอายุ */
+        .reward-card-expired {
+            border-left: 5px solid #6c757d; /* สีเทา */
+            background-color: #f8f9fa;
+            opacity: 0.7;
+        }
+        .reward-card-expired .card-title {
+            color: #6c757d !important;
+        }
+        .reward-card-expired .reward-code {
+            color: #6c757d;
+            background-color: #e9ecef;
+            text-decoration: line-through;
         }
     </style>
 </head>
@@ -128,8 +146,28 @@ $conn->close();
                         <div class="alert alert-light text-center">ยังไม่มีรางวัล</div>
                     <?php else: ?>
                         <?php foreach($user_rewards as $reward): ?>
-                        <div class="card shadow-sm reward-card mb-3">
+                        
+                        <?php
+                            // (ใหม่) ตรวจสอบวันหมดอายุ
+                            $is_expired = false;
+                            $expiry_text = "ไม่มีวันหมดอายุ";
+                            if (!empty($reward['ur_expires_at'])) {
+                                $expiry_date_obj = new DateTime($reward['ur_expires_at']);
+                                if ($expiry_date_obj->format('Y-m-d') < $current_date_str) {
+                                    $is_expired = true;
+                                }
+                                $expiry_text = "หมดอายุ: " . $expiry_date_obj->format('d/m/Y');
+                            }
+                        ?>
+
+                        <!-- (อัปเดต) เพิ่ม class ถ้าหมดอายุ -->
+                        <div class="card shadow-sm reward-card mb-3 <?php echo $is_expired ? 'reward-card-expired' : ''; ?>">
                             <div class="card-body">
+                                
+                                <?php if ($is_expired): ?>
+                                    <span class="badge bg-danger float-end">หมดอายุ</span>
+                                <?php endif; ?>
+
                                 <h5 class="card-title text-info">คูปอง <?php echo number_format($reward['ur_value']); ?> บาท</h5>
                                 <p class="card-subtitle mb-2 text-muted">จาก: <?php echo htmlspecialchars($reward['ur_partner_name']); ?></p>
                                 <hr>
@@ -137,7 +175,10 @@ $conn->close();
                                     รหัสคูปองของคุณ:
                                     <span class="reward-code d-block mt-1"><?php echo htmlspecialchars($reward['ur_code']); ?></span>
                                 </p>
-                                <small class="text-muted d-block text-end">ได้รับเมื่อ: <?php echo date('d/m/Y', strtotime($reward['ur_claimed_at'])); ?></small>
+                                <small class="text-muted d-block text-end">
+                                    ได้รับเมื่อ: <?php echo date('d/m/Y', strtotime($reward['ur_claimed_at'])); ?> | 
+                                    <strong><?php echo $expiry_text; ?></strong>
+                                </small>
                             </div>
                         </div>
                         <?php endforeach; ?>

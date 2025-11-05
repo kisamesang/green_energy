@@ -123,9 +123,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         $partner_name = $campaign_row['c_partner_name'];
                         $reward_code = 'COUPON-' . strtoupper(uniqid());
 
+                        // --- (ใหม่) คำนวณวันหมดอายุคูปอง (เช่น +30 วัน) ---
+                        $reward_expiry_date = date('Y-m-d', strtotime('+30 days'));
+                        // --- จบส่วนใหม่ ---
+
                         $conn->query("UPDATE user_campaigns SET uc_status = 'completed' WHERE uc_id = $uc_id");
-                        $conn->query("INSERT INTO user_rewards (u_id, c_id, ur_code, ur_value, ur_partner_name) 
-                                      VALUES ($user_id, $c_id, '$reward_code', $reward_value, '$partner_name')");
+                        
+                        // --- (อัปเดต) เพิ่ม ur_expires_at ---
+                        $conn->query("INSERT INTO user_rewards (u_id, c_id, ur_code, ur_value, ur_partner_name, ur_expires_at) 
+                                      VALUES ($user_id, $c_id, '$reward_code', $reward_value, '$partner_name', '$reward_expiry_date')");
+                        // --- จบส่วนอัปเดต ---
+                        
                         $_SESSION['campaign_success_message'] = "ยินดีด้วย! คุณทำแคมเปญสำเร็จ! ได้รับคูปอง $reward_value บาท (Code: $reward_code)";
 
                     } else {
@@ -244,13 +252,15 @@ if ($current_goal_value > 0) {
     if ($current_progress_percent > 100) $current_progress_percent = 100;
 }
 
-// --- (ใหม่) 5.5 ดึงข้อมูลแจ้งเตือนแคมเปญ (แบบง่าย) ---
+// --- (อัปเดต) 5.5 ดึงข้อมูลแจ้งเตือนแคมเปญ (กรองที่หมดอายุ) ---
 $new_campaign_count = 0;
 $sql_campaigns_count = "SELECT COUNT(c_id) as count FROM campaigns c
                   WHERE c.c_is_active = 1 
+                  AND (c.c_expires_at IS NULL OR c.c_expires_at >= CURDATE())
                   AND c.c_id NOT IN (
                       SELECT uc.c_id FROM user_campaigns uc WHERE uc.u_id = $user_id
                   )";
+// --- จบส่วนอัปเดต ---
 $campaigns_count_result = $conn->query($sql_campaigns_count);
 if ($campaigns_count_result) {
     $new_campaign_count = (int)$campaigns_count_result->fetch_assoc()['count'];

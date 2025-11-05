@@ -73,11 +73,14 @@ $available_campaigns = [];
 $active_user_campaigns = [];
 
 // 4.1 ดึงแคมเปญที่ "มีให้เลือก" (คือแคมเปญที่ยังไม่ได้รับ)
+// --- (อัปเดต) กรองแคมเปญที่หมดอายุออก ---
 $sql_campaigns = "SELECT * FROM campaigns c
                   WHERE c.c_is_active = 1 
+                  AND (c.c_expires_at IS NULL OR c.c_expires_at >= CURDATE())
                   AND c.c_id NOT IN (
                       SELECT uc.c_id FROM user_campaigns uc WHERE uc.u_id = $user_id
                   )";
+// --- จบส่วนอัปเดต ---
 $campaigns_result = $conn->query($sql_campaigns);
 while ($row = $campaigns_result->fetch_assoc()) {
     $available_campaigns[] = $row;
@@ -248,6 +251,14 @@ $conn->close();
                                         <i class="fas fa-trophy me-2"></i>
                                         รางวัล: ส่วนลด <?php echo number_format($campaign['c_reward_value']); ?> บาท
                                     </li>
+                                    <!-- (ใหม่) แสดงวันหมดเขต -->
+                                    <?php if (!empty($campaign['c_expires_at'])): ?>
+                                    <li class="list-group-item bg-transparent text-danger">
+                                        <i class="fas fa-calendar-times me-2"></i>
+                                        หมดเขตรับข้อเสนอ: <?php echo date('d/m/Y', strtotime($campaign['c_expires_at'])); ?>
+                                    </li>
+                                    <?php endif; ?>
+                                    <!-- จบส่วนใหม่ -->
                                 </ul>
                                 <form method="POST" action="campaigns.php" onsubmit="return confirm('คุณต้องมีบิลค่าไฟที่ตรวจสอบแล้วอย่างน้อย 1 เดือนเพื่อใช้เป็นฐานอ้างอิง คุณต้องการรับข้อเสนอนี้หรือไม่?');">
                                     <input type="hidden" name="action" value="accept_campaign">
