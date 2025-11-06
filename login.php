@@ -6,7 +6,12 @@ require_once 'db_connect.php'; // $conn และ session_start()
 
 // 1. ตรวจสอบว่า Login หรือยัง? (ถ้าใช่ ให้เด้งไป Dashboard)
 if (isset($_SESSION['u_id'])) {
-    header('Location: dashboard.php'); // (เราจะสร้างไฟล์นี้ต่อไป)
+    // (อัปเดต) ตรวจสอบ Role ใน Session ด้วย ถ้าเป็น Admin ให้ไปหน้า Admin
+    if (isset($_SESSION['u_role']) && $_SESSION['u_role'] === 'admin') {
+        header('Location: admin/admin_dashboard.php');
+    } else {
+        header('Location: dashboard.php'); 
+    }
     exit;
 }
 
