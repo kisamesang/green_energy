@@ -1,25 +1,24 @@
 <?php
 // -----------------------------------------------------------------------------
 // Admin Dashboard (หน้าแรก Admin)
-// (ไฟล์นี้อยู่ใน /admin/ แล้ว)
 // -----------------------------------------------------------------------------
 $page_title = 'Admin Dashboard'; // (สำหรับ <title>)
 $current_page = 'dashboard'; // (สำหรับ Active Menu)
-
-// (ลิงก์นี้ถูกต้องแล้ว เพราะ admin_header.php อยู่ในโฟลเดอร์เดียวกัน)
 require_once 'admin_header.php'; // (เรียก Header และ ตรวจสอบสิทธิ์ Admin)
 
 // --- START: ดึงข้อมูล (GET) ---
 
 // 1. ดึงสถิติสรุป (Admin Stats)
 try {
-    // (โค้ดส่วนนี้ไม่ต้องแก้ไข เพราะ $conn มาจาก admin_header.php)
+    // 1.1 จำนวนผู้ใช้ทั้งหมด
     $result_users = $conn->query("SELECT COUNT(u_id) as count FROM users WHERE u_role = 'user'");
     $total_users = $result_users->fetch_assoc()['count'];
     
+    // 1.2 จำนวนบิลที่รออนุมัติ (Pending)
     $result_pending = $conn->query("SELECT COUNT(el_id) as count FROM energy_log WHERE el_verification_status = 'pending'");
     $total_pending_logs = $result_pending->fetch_assoc()['count'];
     
+    // 1.3 จำนวนแคมเปญที่ Active
     $result_campaigns = $conn->query("SELECT COUNT(c_id) as count FROM campaigns WHERE c_is_active = 1");
     $total_active_campaigns = $result_campaigns->fetch_assoc()['count'];
 
@@ -30,12 +29,12 @@ try {
 // 2. ดึงคิวรอตรวจสอบ (Verification Queue)
 $pending_logs = [];
 try {
-    // (โค้ดส่วนนี้ไม่ต้องแก้ไข)
+    // (เรา JOIN ตาราง users เพื่อดึงชื่อผู้ใช้มาแสดง)
     $sql_queue = "SELECT el.el_id, el.el_kwh_usage, el.el_date, el.el_bill_proof_file, u.u_full_name, u.u_username
                   FROM energy_log el
                   JOIN users u ON el.u_id = u.u_id
                   WHERE el.el_verification_status = 'pending'
-                  ORDER BY el.el_date ASC"; 
+                  ORDER BY el.el_date ASC"; // (เรียงตามวันที่ส่ง)
                   
     $result_queue = $conn->query($sql_queue);
     while ($row = $result_queue->fetch_assoc()) {
@@ -65,7 +64,6 @@ $conn->close();
         
         <!-- แถวสถิติสรุป (Admin Stats) -->
         <div class="row g-4 mb-4">
-            <!-- (โค้ดส่วนสถิติ 3 การ์ด ไม่ต้องแก้ไข) -->
             <div class="col-md-4">
                 <div class="card shadow-sm stat-card border-primary">
                     <div class="card-body">
@@ -137,13 +135,13 @@ $conn->close();
                                     <td><?php echo date('d/m/Y', strtotime($log['el_date'])); ?></td>
                                     <td><span class="badge bg-primary"><?php echo number_format($log['el_kwh_usage'], 2); ?></span></td>
                                     <td>
-                                        <!-- (แก้ไข) ต้องถอยกลับ 1 ระดับเพื่อไปโฟลเดอร์ uploads/ -->
-                                        <a href="../uploads/bills/<?php echo htmlspecialchars($log['el_bill_proof_file']); ?>" target="_blank" class="bill-link">
+                                        <!-- ลิงก์ไปยังไฟล์บิล (เปิดในแท็บใหม่) -->
+                                        <a href="uploads/bills/<?php echo htmlspecialchars($log['el_bill_proof_file']); ?>" target="_blank" class="bill-link">
                                             <i class="fas fa-file-invoice me-1"></i> ดูไฟล์บิล
                                         </a>
                                     </td>
                                     <td class="text-center">
-                                        <!-- (ลิงก์นี้ถูกต้องแล้ว เพราะ admin_actions.php อยู่ในโฟลเดอร์เดียวกัน) -->
+                                        <!-- ฟอร์มสำหรับ "อนุมัติ" -->
                                         <form method="POST" action="admin_actions.php" class="d-inline-block" onsubmit="return confirm('คุณต้องการอนุมัติบิลนี้ใช่หรือไม่?');">
                                             <input type="hidden" name="action" value="approve_bill">
                                             <input type="hidden" name="log_id" value="<?php echo $log['el_id']; ?>">
@@ -152,7 +150,7 @@ $conn->close();
                                             </button>
                                         </form>
                                         
-                                        <!-- (ลิงก์นี้ถูกต้องแล้ว) -->
+                                        <!-- ฟอร์มสำหรับ "ปฏิเสธ" -->
                                         <form method="POST" action="admin_actions.php" class="d-inline-block" onsubmit="return confirm('คุณต้องการปฏิเสธบิลนี้ใช่หรือไม่?');">
                                             <input type="hidden" name="action" value="reject_bill">
                                             <input type="hidden" name="log_id" value="<?php echo $log['el_id']; ?>">

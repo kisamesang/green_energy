@@ -14,15 +14,15 @@ if (!isset($_SESSION['u_role']) || $_SESSION['u_role'] !== 'admin') {
     exit;
 }
 
-// 2. ดึงข้อมูล Admin จาก Session (เผื่อใช้)
+// 2. ดึงข้อมูลผู้ใช้ (สำหรับ Navbar)
 $admin_id = $_SESSION['u_id'];
 $admin_username = $_SESSION['u_username'];
 $admin_full_name = $_SESSION['u_full_name'] ?? $admin_username;
 
-// 3. (ตัวแปรสำหรับ Active Menu)
-if (!isset($current_page)) {
-    $current_page = ''; // ค่าเริ่มต้น
-}
+// 3. (สำหรับ Flash Messages - ถ้ามี)
+$admin_error = $_SESSION['admin_error'] ?? '';
+$admin_success = $_SESSION['admin_success'] ?? '';
+unset($_SESSION['admin_error'], $_SESSION['admin_success']);
 
 ?>
 <!DOCTYPE html>
@@ -35,6 +35,10 @@ if (!isset($current_page)) {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- (ใหม่) CSS สำหรับ DataTables (Bootstrap 5) -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.css" />
+    
     <style>
         body { 
             font-family: 'Prompt', sans-serif; 
@@ -46,39 +50,25 @@ if (!isset($current_page)) {
         .navbar-brand { font-weight: 700; }
         .main-content { flex-grow: 1; padding: 2rem 0; }
         
-        /* (CSS สำหรับ Admin) */
-        .admin-navbar {
-            background-color: #343a40; /* สีเทาเข้มสำหรับ Admin */
-        }
-        .admin-navbar .nav-link.active {
-            font-weight: 700;
-        }
-        .verification-queue .badge {
-            font-size: 0.9rem;
-        }
-        .verification-queue .bill-link {
-            font-size: 0.9rem;
-        }
-        .stat-card {
-            border-left: 5px solid #0d6efd;
+        /* (สไตล์สำหรับตาราง DataTables) */
+        .dataTables_wrapper .row {
+            margin-bottom: 1rem;
         }
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
     <!-- Navbar (Admin) -->
-    <nav class="navbar navbar-expand-lg navbar-dark admin-navbar shadow-sm sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm sticky-top">
         <div class="container">
-            <!-- (ลิงก์ภายใน /admin/ ไม่ต้องแก้) -->
             <a class="navbar-brand" href="admin_dashboard.php">
-                <i class="fas fa-shield-halved me-2"></i>Admin Panel
+                <i class="fas fa-user-shield me-2"></i>Admin Panel
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNavbar">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            <div class="collapse navbar-collapse" id="adminNavbarNav">
+            <div class="collapse navbar-collapse" id="adminNavbar">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <!-- (ลิงก์ภายใน /admin/ ไม่ต้องแก้) -->
                     <li class="nav-item">
                         <a class="nav-link <?php echo ($current_page == 'dashboard') ? 'active' : ''; ?>" href="admin_dashboard.php">
                             <i class="fas fa-tachometer-alt me-1"></i>Dashboard
@@ -91,7 +81,7 @@ if (!isset($current_page)) {
                     </li>
                     <li class="nav-item">
                         <a class="nav-link <?php echo ($current_page == 'content') ? 'active' : ''; ?>" href="admin_manage_content.php">
-                            <i class="fas fa-file-alt me-1"></i>จัดการเนื้อหา
+                            <i class="fas fa-newspaper me-1"></i>จัดการเนื้อหา
                         </a>
                     </li>
                     <li class="nav-item">
@@ -101,27 +91,31 @@ if (!isset($current_page)) {
                     </li>
                     <li class="nav-item">
                         <a class="nav-link <?php echo ($current_page == 'reports') ? 'active' : ''; ?>" href="admin_reports.php">
-                            <i class="fas fa-chart-bar me-1"></i>รายงาน
+                            <i class="fas fa-file-alt me-1"></i>ระบบรายงาน
                         </a>
                     </li>
                 </ul>
-                <!-- เมนู Admin (ขวา) -->
                 <ul class="navbar-nav ms-auto">
+                    <!-- (ลิงก์กลับหน้า User) -->
                     <li class="nav-item">
-                        <!-- (แก้ไข) ต้องถอยกลับ 1 ระดับเพื่อไป dashboard.php ของ User -->
                         <a class="nav-link" href="../dashboard.php" target="_blank">
-                            <i class="fas fa-globe me-1"></i>(ดูหน้าเว็บ)
+                            <i class="fas fa-globe me-1"></i>ดูหน้าเว็บ (User)
                         </a>
                     </li>
+                    <!-- (เมนู Admin) -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-user-shield me-1"></i> <?php echo htmlspecialchars($admin_full_name); ?>
+                            <i class="fas fa-user me-1"></i> <?php echo htmlspecialchars($admin_full_name); ?>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="adminUserDropdown">
-                            <!-- (แก้ไข) ต้องถอยกลับ 1 ระดับ -->
-                            <li><a class="dropdown-item" href="../profile.php">แก้ไขโปรไฟล์</a></li>
+                            <li><a class="dropdown-item" href="../profile.php">แก้ไขโปรไฟล์ (เหมือน User)</a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="../logout.php"><i class="fas fa-sign-out-alt me-1"></i>ออกจากระบบ</a></li>
+                            <li>
+                                <!-- (แก้ไข) ต้องถอยกลับ 1 ระดับ -->
+                                <a class="dropdown-item" href="../logout.php">
+                                    <i class="fas fa-sign-out-alt me-1"></i>ออกจากระบบ
+                                </a>
+                            </li>
                         </ul>
                     </li>
                 </ul>
