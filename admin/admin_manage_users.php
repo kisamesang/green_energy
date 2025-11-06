@@ -111,17 +111,14 @@ try {
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
-                                        <!-- (ใหม่) ปุ่ม Edit (สีฟ้า) -->
-                                        <a href="admin_manage_users.php?action=edit&id=<?php echo $user['u_id']; ?>" class="btn btn-primary btn-sm">
-                                            <i class="fas fa-edit"></i> แก้ไข
-                                        </a>
-
+                                        
+                                        <!-- --- (ย้ายมาอันแรก) ปุ่ม Ban/Unban (ระงับ) --- -->
                                         <?php if ($user['u_status'] == 'active'): ?>
-                                            <!-- ปุ่ม Ban (สีแดง) -->
+                                            <!-- ปุ่ม Ban (สีแดงอ่อน) -->
                                             <form method="POST" action="admin_actions.php" class="d-inline-block" onsubmit="return confirm('คุณต้องการระงับผู้ใช้นี้ใช่หรือไม่?');">
                                                 <input type="hidden" name="action" value="ban_user">
                                                 <input type="hidden" name="u_id" value="<?php echo $user['u_id']; ?>">
-                                                <button type="submit" class="btn btn-danger btn-sm">
+                                                <button type="submit" class="btn btn-warning btn-sm">
                                                     <i class="fas fa-user-slash"></i> ระงับ
                                                 </button>
                                             </form>
@@ -135,6 +132,20 @@ try {
                                                 </button>
                                             </form>
                                         <?php endif; ?>
+
+                                        <!-- --- (ย้ายมาอันที่สอง) ปุ่ม Edit (แก้ไข) --- -->
+                                        <a href="admin_manage_users.php?action=edit&id=<?php echo $user['u_id']; ?>" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-edit"></i> แก้ไข
+                                        </a>
+                                        
+                                        <!-- --- (อันสุดท้าย) ปุ่ม Delete (ลบถาวร) --- -->
+                                        <form method="POST" action="admin_actions.php" class="d-inline-block" onsubmit="return confirm('คำเตือน!!\nคุณกำลังจะลบผู้ใช้ ID: <?php echo $user['u_id']; ?> (<?php echo htmlspecialchars($user['u_username']); ?>) ออกจากระบบอย่างถาวร\n\nการกระทำนี้จะลบข้อมูลประวัติทั้งหมด (บิล, รางวัล, แคมเปญ) ของผู้ใช้นี้ทิ้งทั้งหมด และไม่สามารถกู้คืนได้!\n\nคุณยืนยันที่จะลบใช่หรือไม่?');">
+                                            <input type="hidden" name="action" value="delete_user">
+                                            <input type="hidden" name="u_id" value="<?php echo $user['u_id']; ?>">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i> ลบถาวร
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
