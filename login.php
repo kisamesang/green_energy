@@ -46,7 +46,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     
                     // 8. เด้งไปหน้า Dashboard (3.5.4.1 ข้อ 4 - Role-based access)
                     if ($user['u_role'] === 'admin') {
-                        header('Location: manage_users.php'); // (Admin ไปหน้าจัดการผู้ใช้)
+                        header('Location: admin/admin_dashboard.php'); // (Admin ไปหน้าจัดการผู้ใช้)
                     } else {
                         header('Location: dashboard.php'); // (User ไปหน้า Dashboard)
                     }
