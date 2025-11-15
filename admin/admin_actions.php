@@ -28,160 +28,90 @@ try {
         if (empty($log_id)) throw new Exception("Log ID ห้ามว่าง");
         
         $sql_approve = "UPDATE energy_log SET el_verification_status = 'verified' WHERE el_id = $log_id AND el_verification_status = 'pending'";
-        if (!$conn->query($sql_approve)) throw new Exception("Approve Bill Error: " . $conn->error);
         
-        $_SESSION['admin_success'] = "อนุมัติบิล ID: $log_id เรียบร้อย";
-        $redirect_to = 'admin_dashboard.php'; // (ระบุปลายทาง)
-    
-    // --- ACTION 2: ปฏิเสธบิล (Reject Bill) ---
-    } elseif ($action === 'reject_bill') {
-        $log_id = (int)($_POST['log_id'] ?? 0);
-        if (empty($log_id)) throw new Exception("Log ID ห้ามว่าง");
-
-        $sql_reject = "UPDATE energy_log SET el_verification_status = 'rejected' WHERE el_id = $log_id AND el_verification_status = 'pending'";
-        if (!$conn->query($sql_reject)) throw new Exception("Reject Bill Error: " . $conn->error);
-
-        $_SESSION['admin_success'] = "ปฏิเสธบิล ID: $log_id เรียบร้อย";
-        $redirect_to = 'admin_dashboard.php';
-
-    // --- ACTION 3: ระงับผู้ใช้ (Ban User) ---
-    } elseif ($action === 'ban_user') {
-        $user_id = (int)($_POST['u_id'] ?? 0);
-        if (empty($user_id)) throw new Exception("User ID ห้ามว่าง");
-
-        $sql_ban = "UPDATE users SET u_status = 'banned' WHERE u_id = $user_id AND u_role = 'user'";
-        if (!$conn->query($sql_ban)) throw new Exception("Ban User Error: " . $conn->error);
-
-        $_SESSION['admin_success'] = "ระงับผู้ใช้ ID: $user_id เรียบร้อย";
-        $redirect_to = 'admin_manage_users.php'; // (ปลายทาง)
-
-    // --- ACTION 4: ยกเลิกระงับ (Unban User) ---
-    } elseif ($action === 'unban_user') {
-        $user_id = (int)($_POST['u_id'] ?? 0);
-        if (empty($user_id)) throw new Exception("User ID ห้ามว่าง");
-
-        $sql_unban = "UPDATE users SET u_status = 'active' WHERE u_id = $user_id AND u_role = 'user'";
-        if (!$conn->query($sql_unban)) throw new Exception("Unban User Error: " . $conn->error);
-
-        $_SESSION['admin_success'] = "ยกเลิกการระงับผู้ใช้ ID: $user_id เรียบร้อย";
-        $redirect_to = 'admin_manage_users.php';
-
-    // --- ACTION 9: บันทึกผู้ใช้ (Save User) ---
-    } elseif ($action === 'save_user') {
-        // 1. ดึงข้อมูลจากฟอร์ม
-        $u_id = (int)($_POST['u_id'] ?? 0);
-        $u_full_name = $conn->real_escape_string($_POST['u_full_name'] ?? '');
-        $u_email = $conn->real_escape_string($_POST['u_email'] ?? '');
-        $u_username = $conn->real_escape_string($_POST['u_username'] ?? '');
-        $u_password = $_POST['u_password'] ?? ''; // (ยังไม่ Hash)
-        $u_role = $conn->real_escape_string($_POST['u_role'] ?? 'user');
-        $u_status = $conn->real_escape_string($_POST['u_status'] ?? 'active');
-
-        // 2. ตรวจสอบ Username/Email ซ้ำ
-        $sql_check_dupe = "SELECT u_id FROM users WHERE (u_username = '$u_username' OR u_email = '$u_email') AND u_id != $u_id";
-        $dupe_result = $conn->query($sql_check_dupe);
-        if ($dupe_result->num_rows > 0) {
-            throw new Exception("Username หรือ Email นี้ถูกใช้งานแล้ว");
-        }
-
-        // 3. จัดการรหัสผ่าน
-        $password_sql_part = "";
-        if (!empty($u_password)) {
-            // (ถ้ามีการกรอกรหัสผ่านใหม่)
-            if (strlen($u_password) < 6) {
-                throw new Exception("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
-            }
-            $hashed_password = password_hash($u_password, PASSWORD_DEFAULT);
-            $password_sql_part = ", u_password = '$hashed_password'";
-        }
-        
-        // 4. ตรวจสอบว่า "สร้างใหม่" (INSERT) หรือ "แก้ไข" (UPDATE)
-        if (empty($u_id)) {
-            // สร้างใหม่ (INSERT)
-            if (empty($u_password)) {
-                throw new Exception("กรุณากรอกรหัสผ่านสำหรับผู้ใช้ใหม่");
-            }
-            $sql_save = "INSERT INTO users (u_full_name, u_email, u_username, u_password, u_role, u_status) 
-                         VALUES ('$u_full_name', '$u_email', '$u_username', '$hashed_password', '$u_role', '$u_status')";
-            $_SESSION['admin_success'] = "สร้างผู้ใช้ '$u_username' เรียบร้อย";
-        } else {
-            // แก้ไข (UPDATE)
-            $sql_save = "UPDATE users SET 
-                            u_full_name = '$u_full_name',
-                            u_email = '$u_email',
-                            u_username = '$u_username',
-                            u_role = '$u_role',
-                            u_status = '$u_status'
-                            $password_sql_part 
-                         WHERE u_id = $u_id";
-            $_SESSION['admin_success'] = "อัปเดตผู้ใช้ '$u_username' เรียบร้อย";
-        }
-        
-        if (!$conn->query($sql_save)) throw new Exception("Save User Error: " . $conn->error);
-        
-        $redirect_to = 'admin_manage_users.php';
-        
-    // --- (ใหม่) ACTION 10: ลบผู้ใช้ถาวร (Hard Delete User) ---
-    } elseif ($action === 'delete_user') {
-        $u_id = (int)($_POST['u_id'] ?? 0);
-        if (empty($u_id)) throw new Exception("User ID ห้ามว่าง");
-        
-        // --- (สำคัญ) เริ่ม Transaction ---
+        // *** 💡 เริ่ม Transaction เพื่อให้การอนุมัติบิลและการให้รางวัลสำเร็จไปพร้อมกัน ***
         $conn->begin_transaction();
         
-        try {
-            // 1. ลบข้อมูลลูก (Child records) ก่อน
-            $conn->query("DELETE FROM energy_log WHERE u_id = $u_id");
-            $conn->query("DELETE FROM saving_goals WHERE u_id = $u_id");
-            $conn->query("DELETE FROM user_rewards WHERE u_id = $u_id");
-            $conn->query("DELETE FROM user_campaigns WHERE u_id = $u_id");
-            
-            // 2. ลบข้อมูลแม่ (Parent record)
-            $sql_delete_user = "DELETE FROM users WHERE u_id = $u_id AND u_role = 'user'";
-            $conn->query($sql_delete_user);
-            
-            // 3. ยืนยัน Transaction
-            $conn->commit();
-            
-            $_SESSION['admin_success'] = "ลบผู้ใช้ ID: $u_id และข้อมูลที่เกี่ยวข้องทั้งหมดเรียบร้อย";
-            
-        } catch (Exception $e) {
-            // 4. ถ้ามี Error ให้ Rollback
+        if (!$conn->query($sql_approve)) {
             $conn->rollback();
-            throw new Exception("Delete User Error: " . $e->getMessage());
+            throw new Exception("Approve Bill Error: " . $conn->error);
+        }
+
+        // 1. ตรวจสอบว่ามีการอัปเดตจริงหรือไม่ (ป้องกันการรันโค้ดต่อหากบิลไม่ได้อยู่ในสถานะ pending)
+        if ($conn->affected_rows === 0) {
+             $conn->rollback();
+             throw new Exception("ไม่พบ Log ID: $log_id หรือสถานะไม่เป็น 'pending'");
         }
         
-        $redirect_to = 'admin_manage_users.php';
-
-    // --- (โค้ดของ Content และ Campaigns ยังคงอยู่) ---
+        $campaigns_awarded_count = 0;
         
-    // --- ACTION 5: บันทึกเนื้อหา (Save Tip) ---
-    } elseif ($action === 'save_tip') {
-        $t_id = (int)($_POST['t_id'] ?? 0);
-        $t_title = $conn->real_escape_string($_POST['t_title'] ?? '');
-        $t_content = $conn->real_escape_string($_POST['t_content'] ?? '');
-        $t_category = $conn->real_escape_string($_POST['t_category'] ?? 'ทั่วไป');
-        $t_is_active = isset($_POST['t_is_active']) ? 1 : 0;
-        $t_display_until = !empty($_POST['t_display_until']) ? "'" . $conn->real_escape_string($_POST['t_display_until']) . "'" : "NULL";
+        // 2. ดึงข้อมูล KWH และ User ID จากรายการที่เพิ่ง Verified
+        $sql_fetch_data = "SELECT u_id, el_kwh_usage FROM energy_log WHERE el_id = $log_id";
+        $log_result = $conn->query($sql_fetch_data);
+        
+        if ($log_result->num_rows > 0) {
+            $log_row = $log_result->fetch_assoc();
+            $user_id = $log_row['u_id'];
+            $current_kwh = (float)$log_row['el_kwh_usage'];
 
-        if (empty($t_id)) {
-            $sql_save = "INSERT INTO tips (t_title, t_content, t_category, t_is_active, t_display_until) 
-                         VALUES ('$t_title', '$t_content', '$t_category', $t_is_active, $t_display_until)";
-            $_SESSION['admin_success'] = "สร้างเคล็ดลับใหม่เรียบร้อย";
+            // 3. ค้นหาแคมเปญที่ผู้ใช้เข้าร่วมและมีสถานะ 'accepted'
+            $sql_find_campaign = "SELECT uc.*, c.* FROM user_campaigns uc 
+                                  JOIN campaigns c ON uc.c_id = c.c_id 
+                                  WHERE uc.u_id = $user_id AND uc.uc_status = 'accepted'";
+            $campaign_result = $conn->query($sql_find_campaign);
+
+            if ($campaign_result->num_rows > 0) {
+                
+                // 4. วนซ้ำเพื่อตรวจสอบและให้รางวัลทุกแคมเปญ
+                while ($campaign_row = $campaign_result->fetch_assoc()) {
+                    $target_kwh = (float)$campaign_row['uc_target_kwh'];
+                    
+                    // เงื่อนไขความสำเร็จ
+                    if ($current_kwh <= $target_kwh) {
+                        
+                        // ให้รางวัล (ทำสำเร็จ)
+                        $uc_id = $campaign_row['uc_id'];
+                        $c_id = $campaign_row['c_id'];
+                        $reward_value = $campaign_row['c_reward_value'];
+                        $partner_name = $campaign_row['c_partner_name'];
+                        $reward_code = 'COUPON-' . strtoupper(uniqid());
+                        $reward_expiry_date = date('Y-m-d', strtotime('+30 days'));
+
+                        // อัปเดตสถานะแคมเปญ
+                        if (!$conn->query("UPDATE user_campaigns SET uc_status = 'completed' WHERE uc_id = $uc_id")) {
+                            $conn->rollback();
+                            throw new Exception("Update Campaign Error for uc_id $uc_id: " . $conn->error);
+                        }
+                        
+                        // บันทึกรางวัล
+                        if (!$conn->query("INSERT INTO user_rewards (u_id, c_id, ur_code, ur_value, ur_partner_name, ur_expires_at) 
+                                          VALUES ($user_id, $c_id, '$reward_code', $reward_value, '$partner_name', '$reward_expiry_date')")) {
+                            $conn->rollback();
+                            throw new Exception("Insert Reward Error for c_id $c_id: " . $conn->error);
+                        }
+                        
+                        $campaigns_awarded_count++;
+                    }
+                }
+            }
+        }
+        
+        // 5. Commit Transaction เมื่อทุกอย่างสำเร็จ
+        $conn->commit();
+        
+        $campaign_msg = "";
+        if ($campaigns_awarded_count > 0) {
+            $campaign_msg = " และให้รางวัลแคมเปญสำเร็จ $campaigns_awarded_count รายการ";
+        } elseif (isset($user_id) && $user_id > 0) {
+             $campaign_msg = " (ตรวจสอบแคมเปญแล้ว: ไม่พบแคมเปญที่สำเร็จ)";
         } else {
-            $sql_save = "UPDATE tips SET 
-                            t_title = '$t_title',
-                            t_content = '$t_content',
-                            t_category = '$t_category',
-                            t_is_active = $t_is_active,
-                            t_display_until = $t_display_until
-                         WHERE t_id = $t_id";
-            $_SESSION['admin_success'] = "อัปเดตเคล็ดลับ ID: $t_id เรียบร้อย";
+             $campaign_msg = " (ไม่สามารถตรวจสอบแคมเปญได้: ไม่พบข้อมูลบิล)";
         }
-        
-        if (!$conn->query($sql_save)) throw new Exception("Save Tip Error: " . $conn->error);
-        
-        $redirect_to = 'admin_manage_content.php';
+
+        $_SESSION['admin_success'] = "อนุมัติบิล ID: $log_id เรียบร้อย" . $campaign_msg;
+        $redirect_to = 'admin_dashboard.php'; 
+    
+    // ... โค้ด ACTION อื่น ๆ ต่อจากตรงนี้
         
     // --- ACTION 6: ลบเนื้อหา (Delete Tip) ---
     } elseif ($action === 'delete_tip') {

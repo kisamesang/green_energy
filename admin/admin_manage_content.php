@@ -14,17 +14,6 @@ $tip_data = null; // (สำหรับฟอร์ม Edit)
 $tips_list = []; // (สำหรับตาราง List)
 
 try {
-    // (ตรวจสอบตาราง tips ถ้ายังไม่มี ให้สร้าง)
-    $conn->query("CREATE TABLE IF NOT EXISTS `tips` (
-                      `t_id` INT AUTO_INCREMENT PRIMARY KEY,
-                      `t_title` VARCHAR(255) NOT NULL,
-                      `t_content` TEXT NOT NULL,
-                      `t_category` VARCHAR(100) DEFAULT 'ทั่วไป',
-                      `t_is_active` BOOLEAN NOT NULL DEFAULT TRUE,
-                      `t_display_until` DATE NULL,
-                      `t_created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
     // 1. ถ้าเป็นการ "แก้ไข" (Edit)
     if ($action === 'edit' && $edit_id > 0) {
         $result = $conn->query("SELECT * FROM tips WHERE t_id = $edit_id");
@@ -140,8 +129,7 @@ try {
             <!-- --------------------------------- -->
             <h2 class="h4 mb-4">
                 <?php echo ($action === 'create') ? 'เพิ่มเคล็ดลับใหม่' : 'แก้ไขเคล็ดลับ (ID: ' . $tip_data['t_id'] . ')'; ?>
-            </h2>
-            
+            </h2>            
             <div class="card shadow-sm">
                 <div class="card-body">
                     <form method="POST" action="admin_actions.php">
@@ -174,8 +162,7 @@ try {
                                     <label class="form-check-label" for="t_is_active">เปิดใช้งาน (Active)</label>
                                 </div>
                             </div>
-                        </div>
-                        
+                        </div>                        
                         <hr>
                         <button type="submit" class="btn btn-success me-2"><i class="fas fa-save me-2"></i>บันทึกข้อมูล</button>
                         <a href="admin_manage_content.php" class="btn btn-outline-secondary">ยกเลิก</a>
@@ -220,6 +207,5 @@ try {
         <?php endif; ?>
     });
 </script>
-
 </body>
 </html>

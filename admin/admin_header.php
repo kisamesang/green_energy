@@ -4,7 +4,6 @@
 // (ไฟล์นี้อยู่ใน /admin/ แล้ว)
 // -----------------------------------------------------------------------------
 
-// --- (แก้ไข) ต้องถอยกลับ 1 ระดับเพื่อหา db_connect.php ---
 require_once '../db_connect.php'; // $conn และ session_start()
 
 // 1. ตรวจสอบสิทธิ์ (Security)
@@ -37,7 +36,8 @@ unset($_SESSION['admin_error'], $_SESSION['admin_success']);
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <!-- (ใหม่) CSS สำหรับ DataTables (Bootstrap 5) -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.css" />
+    <!-- <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.css" /> -->
+    <link rel="stylesheet" href="//cdn.datatables.net/2.3.4/css/dataTables.dataTables.min.css" />
     
     <style>
         body { 

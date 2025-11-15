@@ -1,7 +1,5 @@
 <?php
-// -----------------------------------------------------------------------------
-// หน้า Dashboard (Refactored - Clean Version)
-// -----------------------------------------------------------------------------
+
 require_once 'db_connect.php'; // $conn และ session_start()
 
 // 1. ตรวจสอบสิทธิ์ (Security)
@@ -97,54 +95,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 throw new Exception('คุณได้บันทึกข้อมูลสำหรับเดือนนี้ไปแล้ว');
             }
 
-            // SQL INSERT (คงเดิม)
-            $sql_insert = "INSERT INTO energy_log (u_id, el_date, el_kwh_usage, el_water_usage, el_period_start, el_calculated_cost, el_bill_proof_file, el_verification_status) 
-                           VALUES ($user_id, '$log_date', $kwh_usage, $water_usage, '$period_start', $calculated_cost, '$unique_filename', 'pending')";
-            
-            if ($conn->query($sql_insert) === TRUE) {
-                $success_message = 'บันทึกข้อมูลสำเร็จ! (รอการตรวจสอบจากผู้ดูแลระบบ)';
-                
-                // (คงเดิม) ตรวจสอบแคมเปญหลังจากบันทึกข้อมูล
-                $sql_find_campaign = "SELECT * FROM user_campaigns uc 
-                                      JOIN campaigns c ON uc.c_id = c.c_id 
-                                      WHERE uc.u_id = $user_id AND uc.uc_status = 'accepted'";
-                $campaign_result = $conn->query($sql_find_campaign);
+        
+// ... ส่วนของโค้ดที่ต้องมีก่อนหน้า เช่น การเชื่อมต่อฐานข้อมูล ($conn)
+// และการกำหนดค่าตัวแปรสำหรับ INSERT เช่น $user_id, $kwh_usage ฯลฯ
 
-                if ($campaign_result->num_rows > 0) {
-                    $campaign_row = $campaign_result->fetch_assoc();
-                    $target_kwh = (float)$campaign_row['uc_target_kwh'];
-                    $current_kwh = (float)$kwh_usage;
+// ... ส่วนของโค้ดที่เตรียมตัวแปรและการเชื่อมต่อฐานข้อมูล
 
-                    if ($current_kwh <= $target_kwh) {
-                        // 2. ทำสำเร็จ!
-                        $uc_id = $campaign_row['uc_id'];
-                        $c_id = $campaign_row['c_id'];
-                        $reward_value = $campaign_row['c_reward_value'];
-                        $partner_name = $campaign_row['c_partner_name'];
-                        $reward_code = 'COUPON-' . strtoupper(uniqid());
+// SQL INSERT (คงเดิม)
+// บันทึกข้อมูลเข้า energy_log ด้วยสถานะเริ่มต้นเป็น 'pending'
+$sql_insert = "INSERT INTO energy_log (u_id, el_date, el_kwh_usage, el_water_usage, el_period_start, el_calculated_cost, el_bill_proof_file, el_verification_status) 
+               VALUES ($user_id, '$log_date', $kwh_usage, $water_usage, '$period_start', $calculated_cost, '$unique_filename', 'pending')";
 
-                        // --- (ใหม่) คำนวณวันหมดอายุคูปอง (เช่น +30 วัน) ---
-                        $reward_expiry_date = date('Y-m-d', strtotime('+30 days'));
-                        // --- จบส่วนใหม่ ---
+if ($conn->query($sql_insert) === TRUE) {
+    
+    // ดึง ID ของรายการที่เพิ่งบันทึกสำเร็จ (เพื่อใช้ในอนาคต หากต้องการ)
+    $last_el_id = $conn->insert_id; 
+    
+    // แสดงข้อความแจ้งผู้ใช้ว่าต้องรอการตรวจสอบ
+    $success_message = 'บันทึกข้อมูลสำเร็จ! (รอการตรวจสอบจากผู้ดูแลระบบ)';
+    
+    // *** ลบโค้ดตรวจสอบแคมเปญเดิมทั้งหมดออก ***
+    
+} else {
+    // การจัดการข้อผิดพลาดในการบันทึกข้อมูลหลัก
+    throw new Exception("ไม่สามารถบันทึกข้อมูลได้: " . $conn->error);
+}
 
-                        $conn->query("UPDATE user_campaigns SET uc_status = 'completed' WHERE uc_id = $uc_id");
-                        
-                        // --- (อัปเดต) เพิ่ม ur_expires_at ---
-                        $conn->query("INSERT INTO user_rewards (u_id, c_id, ur_code, ur_value, ur_partner_name, ur_expires_at) 
-                                      VALUES ($user_id, $c_id, '$reward_code', $reward_value, '$partner_name', '$reward_expiry_date')");
-                        // --- จบส่วนอัปเดต ---
-                        
-                        $_SESSION['campaign_success_message'] = "ยินดีด้วย! คุณทำแคมเปญสำเร็จ! ได้รับคูปอง $reward_value บาท (Code: $reward_code)";
+// ... ส่วนของโค้ดที่เหลือ
 
-                    } else {
-                        // 3. ทำไม่สำเร็จ
-                        $_SESSION['campaign_fail_message'] = "เกือบแล้ว! คุณพลาดเป้าหมายแคมเปญในเดือนนี้ (ใช้ $current_kwh kWh / เป้าหมาย $target_kwh kWh) พยายามใหม่เดือนหน้า!";
-                    }
-                }
-                
-            } else {
-                throw new Exception("ไม่สามารถบันทึกข้อมูลได้: " . $conn->error);
-            }
         
         // --- ACTION 2: ตั้งเป้าหมายการประหยัด (คงเดิม) ---
         } elseif ($action === 'set_goal') {
@@ -276,9 +254,7 @@ $conn->close(); // ปิดการเชื่อมต่อ
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Green Digital Tracker</title>
     <!-- CSS (คงเดิม) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="assets/bootstrap/bootstrap-5.3.8/dist/css/bootstrap.css" rel="stylesheet">
     
     <style>
         /* (CSS Styles ทั้งหมดคงเดิม) */
@@ -353,10 +329,10 @@ $conn->close(); // ปิดการเชื่อมต่อ
                             <a class="nav-link active" href="dashboard.php">Dashboard (Admin)</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="manage_users.php">จัดการผู้ใช้</a>
+                            <a class="nav-link" href="admin/admin_manage_users.php">จัดการผู้ใช้</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="manage_content.php">จัดการเนื้อหา</a>
+                            <a class="nav-link" href="admin/admin_manage_content.php">จัดการเนื้อหา</a>
                         </li>
                     <?php else: ?>
                         <!-- เมนู User (อัปเดต) -->
@@ -473,12 +449,6 @@ $conn->close(); // ปิดการเชื่อมต่อ
                 </div>
             <?php endif; ?>
             <!-- --- จบส่วนแจ้งเตือนแคมเปญ --- -->
-
-
-            <!-- --- (ลบ) ส่วนแสดงผลแคมเปญและรางวัล --- -->
-            <!-- (โค้ด HTML ของ div.row.g-4.mb-4 ที่แสดงแคมเปญ ถูกลบออกจากตรงนี้) -->
-
-
             <!-- (แถว กราฟ และ ฟอร์ม - โค้ดเต็ม) -->
             <div class="row g-4">
                 
@@ -600,8 +570,8 @@ $conn->close(); // ปิดการเชื่อมต่อ
     </footer>
 
     <!-- (JS Libraries คงเดิม) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="assets/bootstrap/bootstrap-5.3.8/dist/js/bootstrap.bundle.js"></script>
+    <script src="assets/Chart/chart.js"></script>
     
     <!-- (JS หลัก โค้ดเต็ม) -->
     <script>

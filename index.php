@@ -1,22 +1,18 @@
 <?php
-// -----------------------------------------------------------------------------
-// หน้าแรก (Landing Page) (Traditional Style)
-// -----------------------------------------------------------------------------
-require_once 'db_connect.php'; // $conn และ session_start()
 
-// 1. ตรวจสอบว่า Login หรือยัง?
-// (ถ้า Login แล้ว ให้เด้งไปหน้า Dashboard ทันที)
+require_once 'db_connect.php'; 
+
+
 if (isset($_SESSION['u_id'])) {
-    header('Location: dashboard.php'); // (เราจะสร้างไฟล์นี้ต่อไป)
+    header('Location: dashboard.php'); 
     exit;
 }
 
-// 2. ดึงข้อมูลสรุปผลกระทบเชิงบวก (สำหรับ Guest)
-// (ตอบโจทย์ 3.5.4.6 ข้อ 2 - วัดผลได้)
+
 $total_users = 0;
 $total_kwh_saved = 0;
 $total_cost_saved = 0;
-$partners_list = []; // --- EDIT 1: เพิ่มตัวแปรสำหรับพันธมิตร ---
+$partners_list = []; 
 
 try {
     // ดึงจำนวนผู้ใช้ทั้งหมด
@@ -34,8 +30,7 @@ try {
     $total_cost_saved = $result_cost->fetch_assoc()['total_cost'];
     $result_cost->free();
     
-    // --- START EDIT 2: ดึงข้อมูลพันธมิตร (BMC) จาก Database ---
-    // (เราจะใช้ตาราง partners และคอลัมน์ p_logo ที่เราคุยกันไว้)
+
     $sql_partners = "SELECT p_name, p_website_url, p_logo FROM partners WHERE p_is_active = 1 LIMIT 5";
     $result_partners = $conn->query($sql_partners);
     if ($result_partners) {
@@ -44,7 +39,7 @@ try {
         }
         $result_partners->free();
     }
-    // --- END EDIT 2 ---
+
 
 } catch (Exception $e) {
     // (ถ้ามี Error ในการดึงข้อมูล ให้แสดงค่าเริ่มต้น 0)
@@ -73,12 +68,21 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Green Digital Tracker - ระบบติดตามการใช้พลังงาน</title>
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome (Icons) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-    <!-- Google Font "Prompt" -->
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="assets/bootstrap/bootstrap-5.3.8/dist/css/bootstrap.css" rel="stylesheet">
+
+
     <style>
+    
+.profile-icon {
+  width: 10px; 
+  height: auto; 
+}
+
+
+.profile-icon-small {
+  width: 24px;
+  height: auto;
+}
         body { 
             font-family: 'Prompt', sans-serif; 
             background-color: #f8f9fa; 
@@ -141,20 +145,20 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
             color: #333;
         }
         .summary-card .card-title-icon i {
-            color: #198754; /* สีไอคอนตามภาพ */
+            color: #198754; 
             font-size: 1.25rem;
             margin-right: 0.5rem;
         }
         .summary-card h3 {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #212529; /* สีตัวเลข (ดำ) ตามภาพ */
+            color: #212529; 
             margin-top: 0.5rem;
         }
         .summary-card h3 small {
             font-size: 1.5rem;
             font-weight: 500;
-            color: #6c757d; /* สีหน่วย (เทา) ตามภาพ */
+            color: #6c757d; 
         }
         .summary-card p {
             color: #6c757d;
@@ -175,22 +179,23 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
             margin-bottom: 1rem;
             /* สีไอคอนตามภาพ */
         }
-        .feature-card .icon-track { color: #0dcaf0; } /* สีฟ้า */
-        .feature-card .icon-goal { color: #ffc107; } /* สีเหลือง */
-        .feature-card .icon-tips { color: #dc3545; } /* สีแดง */
+        .feature-card .icon-track { color: #0dcaf0; } 
+        .feature-card .icon-goal { color: #ffc107; } 
+        .feature-card .icon-tips { color: #dc3545; } 
         
         .feature-card h4 {
             font-weight: 700;
             color: #333;
+
         }
-         /* --- จบ CSS ที่ตรงกับภาพ --- */
+     
 
         .partner-section {
             background-color: #e9ecef;
             padding: 4rem 0;
         }
         
-        /* --- START EDIT 3: อัปเดต CSS สำหรับโลโก้พันธมิตร (จาก UI เดิม) --- */
+      
         .partner-logo-item {
             min-height: 80px; 
             display: flex; 
@@ -212,11 +217,11 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
             opacity: 1;
         }
         .partner-logo-item span {
-            /* (สไตล์สำหรับชื่อแบรนด์ ถ้าไม่มีโลโก้) */
+      
             color: #6c757d;
             font-weight: 500;
         }
-        /* --- END EDIT 3 --- */
+   
     </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -225,7 +230,7 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
     <nav class="navbar navbar-expand-lg navbar-dark bg-success shadow-sm sticky-top">
         <div class="container">
             <a class="navbar-brand" href="index.php">
-                <i class="fas fa-leaf me-2"></i>Green Digital Tracker
+                Green Digital Tracker
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -246,16 +251,22 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
         </div>
     </nav>
 
-    <!-- Hero Section (ส่วนหัว) -->
+    
     <header class="hero-section">
         <div class="container">
-            <h1 class="display-4"><i class="fas fa-bolt me-3"></i>Green Digital Tracker</h1>
+            <h1 class="display-4">
+            
+            
+            <svg viewBox="0 0 348 210" width="70" style="fill : #FFF" xmlns="" xmlns:xlink="" xml:space="preserve" overflow="hidden"><g transform="translate(-16 -47)"><path d="M77.5222 123.027C105.04 119.16 130.741 135.452 139.698 160.653L139.894 161.456 140.793 163.057C143.799 169.895 145.514 177.435 145.626 185.374L146.167 223.783 144.373 221.695C140.756 217.73 137.133 213.991 133.815 210.803 120.543 198.053 92.4445 178.172 88.7159 178.135 84.9873 178.099 100.813 195.637 111.443 210.586 116.758 218.06 124.638 230.577 132.381 242.121L133.043 243.059 88.9392 243.68C65.1234 244.015 44.4857 229.823 35.4671 209.309L34.0974 205.108 31.3522 199.286C30.0729 195.685 29.1351 191.903 28.5825 187.972L20.5798 131.03ZM248.693 51.2852C254.189 50.8008 259.804 50.7923 265.491 51.2987L359.642 59.6821 351.258 153.833C350.679 160.333 349.456 166.621 347.656 172.638L343.635 182.425 341.738 189.438C328.644 223.868 295.948 248.891 256.822 250.329L184.364 252.992 185.372 251.398C197.12 231.798 209.012 210.591 217.114 197.877 233.316 172.448 257.833 142.334 251.715 142.705 245.597 143.076 201.128 178.061 180.403 200.102 175.222 205.613 169.586 212.054 163.98 218.865L161.209 222.443 158.89 159.341C158.41 146.299 160.597 133.777 164.961 122.3L166.303 119.596 166.558 118.262C177.583 81.4057 210.225 54.6776 248.693 51.2852Z" stroke="" stroke-width="6.875" stroke-miterlimit="8" fill-rule="evenodd"/></g></svg>
+            Green Digital Tracker
+
+            </h1>
             <p class="lead">
                 เปลี่ยนการใช้พลังงานให้เป็นพลังบวก! ติดตาม, ลดการใช้, และสร้างผลกระทบเชิงบวกต่อสิ่งแวดล้อม
                 เริ่มต้นบันทึกการใช้พลังงานเพื่อสะสมแต้มและรับสิทธิประโยชน์มากมาย
             </p>
             <a href="register.php" class="btn btn-light btn-lg fw-bold me-2">
-                <i class="fas fa-user-plus me-2"></i> เริ่มต้นใช้งาน (ฟรี)
+                 เริ่มต้นใช้งาน (ฟรี)
             </a>
             <a href="login.php" class="btn btn-outline-light btn-lg">
                 เข้าสู่ระบบ
@@ -266,31 +277,34 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
     <!-- Main Content -->
     <main class="py-5">
         <div class="container">
-            
-            <!-- 1. ส่วนสรุปผลกระทบ (ตามภาพ) -->
+
             <section class="mb-5 text-start">
-                <h2 class="section-title"><i class="fas fa-chart-line"></i>ผลกระทบเชิงบวกต่อสิ่งแวดล้อม (โดยรวม)</h2>
+                <h2 class="section-title">
+                
+                ผลกระทบเชิงบวกต่อสิ่งแวดล้อม (โดยรวม)
+            
+            </h2>
                 <div class="row g-4">
                     <!-- ผู้ใช้งานรวม -->
                     <div class="col-md-4">
                         <div class="summary-card">
-                            <div class="card-title-icon"><i class="fas fa-users"></i>ผู้ใช้งานรวม</div>
+                            <div class="card-title-icon">ผู้ใช้งานรวม</div>
                             <h3><?php echo number_format($total_users); ?> <small>บัญชี</small></h3>
                             <p>ชุมชนผู้ใช้ที่ใส่ใจสิ่งแวดล้อมที่เติบโตอย่างต่อเนื่อง</p>
                         </div>
                     </div>
-                    <!-- พลังงานที่ลดได้ -->
+
                     <div class="col-md-4">
                         <div class="summary-card">
-                            <div class="card-title-icon"><i class="fas fa-plug-circle-minus"></i>พลังงานที่ลดได้</div>
+                            <div class="card-title-icon">พลังงานที่ลดได้</div>
                             <h3><?php echo number_format($total_kwh_saved, 0); ?> <small>kWh</small></h3>
                             <p>เทียบเท่าการลดการปล่อย CO2 จำนวนมาก</p>
                         </div>
                     </div>
-                    <!-- ค่าใช้จ่ายที่ประหยัด -->
+
                     <div class="col-md-4">
                         <div class="summary-card">
-                            <div class="card-title-icon"><i class="fas fa-coins"></i>ค่าใช้จ่ายที่ประหยัด</div>
+                            <div class="card-title-icon">ค่าใช้จ่ายที่ประหยัด</div>
                             <h3><?php echo number_format($total_cost_saved, 0); ?> <small>บาท</small></h3>
                             <p>ประหยัดค่าใช้จ่ายสะสมคืนกลับสู่ผู้ใช้งาน</p>
                         </div>
@@ -298,27 +312,27 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
                 </div>
             </section>
 
-            <!-- 2. ส่วนคุณสมบัติหลัก (ตามภาพ) -->
+
             <section class="mb-5">
-                <h2 class="section-title text-center"><i class="fas fa-star"></i>คุณสมบัติหลักของระบบ</h2>
+                <h2 class="section-title text-center">คุณสมบัติหลักของระบบ</h2>
                 <div class="row g-4">
                     <div class="col-md-4">
                         <div class="feature-card">
-                            <i class="fas fa-tachometer-alt icon-track"></i>
-                            <h4 class="fw-bold">ติดตามการใช้แบบเรียลไทม์</h4>
+                           
+                            <h4 class="fw-bold ">ติดตามการใช้แบบเรียลไทม์</h4>
                             <p>บันทึกข้อมูลมิเตอร์ด้วยตนเอง และดูกราฟเปรียบเทียบการใช้พลังงานในแต่ละเดือน</p>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="feature-card">
-                            <i class="fas fa-bullseye icon-goal"></i>
+                            
                             <h4 class="fw-bold">กำหนดเป้าหมายการประหยัด</h4>
                             <p>ตั้งเป้าหมายการใช้พลังงาน (kWh) และติดตามความคืบหน้า เพื่อรับ Badge จูงใจ</p>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="feature-card">
-                            <i class="fas fa-lightbulb icon-tips"></i>
+                            
                             <h4 class="fw-bold">เคล็ดลับส่วนบุคคล</h4>
                             <p>รับคำแนะนำในการประหยัดพลังงานที่เหมาะสมกับรูปแบบการใช้งานของคุณโดยเฉพาะ</p>
                         </div>
@@ -326,13 +340,13 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
                 </div>
             </section>
 
-            <!-- 3. ส่วน Business Model Canvas (BMC) (ใหม่) -->
+
             <section class="partner-section">
                 <div class="container text-center">
-                    <h2 class="fw-bold mb-4"><i class="fas fa-handshake me-2"></i>พันธมิตรและผู้สนับสนุน (BMC)</h2>
-                    <p class="lead mb-4">เราร่วมมือกับแบรนด์ที่ใส่ใจสิ่งแวดล้อมเพื่อมอบสิทธิประโยชน์ (แลกคะแนน) ให้กับคุณ</p>
+                    <h2 class="fw-bold mb-4">พันธมิตรและผู้สนับสนุน </h2>
+                    <p class="lead mb-4">เราร่วมมือกับแบรนด์ที่ใส่ใจสิ่งแวดล้อมเพื่อมอบสิทธิประโยชน์ (คูปองส่วนลด) ให้กับคุณ</p>
                     
-                    <!-- --- START EDIT 4: วนลูปแสดงผลพันธมิตร (BMC) จาก Database --- -->
+
                     <div class="row g-3 justify-content-center align-items-stretch">
                         <?php if (empty($partners_list)): ?>
                             <p class="text-muted">(ยังไม่มีข้อมูลพันธมิตรในขณะนี้)</p>
@@ -342,12 +356,12 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
                                     <a href="<?php echo htmlspecialchars($partner['p_website_url']); ?>" target="_blank" class="text-decoration-none d-block h-100">
                                         <div class="partner-logo-item shadow-sm h-100 p-3">
                                             <?php if (!empty($partner['p_logo'])): ?>
-                                                <!-- (แสดงโลโก้จากโฟลเดอร์ img/partners/) -->
+                                                
                                                 <img src="img/partners/<?php echo htmlspecialchars($partner['p_logo']); ?>" 
                                                      alt="<?php echo htmlspecialchars($partner['p_name']); ?>" 
                                                      class="img-fluid">
                                             <?php else: ?>
-                                                <!-- (ถ้าไม่มีโลโก้ ให้แสดงชื่อแทน) -->
+                                                <
                                                 <span class="text-muted small"><?php echo htmlspecialchars($partner['p_name']); ?></span>
                                             <?php endif; ?>
                                         </div>
@@ -356,7 +370,7 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
-                    <!-- --- END EDIT 4 --- -->
+                    
                     
                     <a href="mailto:partner@greentracker.com" class="btn btn-outline-dark mt-4">สนใจเป็นพันธมิตร? ติดต่อเรา</a>
                 </div>
@@ -372,8 +386,7 @@ if ($total_cost_saved == 0) $total_cost_saved = 39067;
         </div>
     </footer>
 
-    <!-- Bootstrap JS (ไม่จำเป็นต้องใช้ jQuery สำหรับหน้านี้) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
 
